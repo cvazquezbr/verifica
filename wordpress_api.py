@@ -6,8 +6,9 @@ class WordPressClient:
     def __init__(self, url, username, app_password):
         self.url = url.rstrip('/')
         self.auth = HTTPBasicAuth(username, app_password)
-        self.target_slug = "td-composer/td-composer.php"
-        self.plugin_id = urllib.parse.quote(self.target_slug, safe='')
+        # Based on user's successful curl: td-composer/td-composer (without .php sometimes)
+        self.target_slugs = ["td-composer/td-composer", "td-composer/td-composer.php"]
+
         # Try both permalink and plain styles
         self.api_endpoints = [
             f"{self.url}/wp-json/wp/v2/plugins",
@@ -25,25 +26,32 @@ class WordPressClient:
         """Checks if the tagDiv Composer plugin is active."""
         errors = []
         for api_url in self.api_endpoints:
+            for slug in self.target_slugs:
+                # Try both encoded and unencoded slash
+                ids_to_try = [slug, urllib.parse.quote(slug, safe='')]
+                for pid in ids_to_try:
+                    try:
+                        url = self._get_api_url(api_url, pid)
+                        print(f"DEBUG: Checking plugin status at: {url}")
+                        response = requests.get(url, auth=self.auth, timeout=10)
+                        print(f"DEBUG: Response Code: {response.status_code}")
+
+                        if response.status_code == 200:
+                            data = response.json()
+                            return data.get('status') == 'active'
+                    except Exception as e:
+                        errors.append(f"Error checking {url}: {str(e)}")
+
+            # Fallback: list all plugins from this endpoint
             try:
-                url = self._get_api_url(api_url, self.plugin_id)
-                print(f"DEBUG: Checking plugin status at: {url}")
-                response = requests.get(url, auth=self.auth, timeout=10)
-                print(f"DEBUG: Response Code: {response.status_code}")
-
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get('status') == 'active'
-
-                # If 404, try listing all plugins from this endpoint
-                print(f"DEBUG: Direct access failed ({response.status_code}) for {url}. Trying list...")
+                print(f"DEBUG: Direct access failed for {api_url}. Trying list...")
                 list_response = requests.get(api_url, auth=self.auth, timeout=10)
                 print(f"DEBUG: List Response Code: {list_response.status_code}")
 
                 if list_response.status_code == 200:
                     plugins = list_response.json()
                     for p in plugins:
-                        if p.get('plugin') == self.target_slug:
+                        if p.get('plugin') in self.target_slugs:
                             return p.get('status') == 'active'
                     errors.append(f"List OK at {api_url} but plugin not found.")
                 elif list_response.status_code == 401:
@@ -51,30 +59,33 @@ class WordPressClient:
                 else:
                     errors.append(f"Endpoint {api_url} returned {list_response.status_code}")
             except Exception as e:
-                errors.append(f"Error with {api_url}: {str(e)}")
+                errors.append(f"Error listing {api_url}: {str(e)}")
 
-        raise Exception(f"Plugin not found. Details: {' | '.join(errors)}")
+        raise Exception(f"Plugin not found. Details: {' | '.join(list(set(errors))[:3])}")
 
     def activate_plugin(self):
         """Activates the tagDiv Composer plugin."""
         errors = []
         for api_url in self.api_endpoints:
-            url = self._get_api_url(api_url, self.plugin_id)
-            try:
-                payload = {'status': 'active'}
-                print(f"DEBUG: Activating plugin at: {url}")
-                response = requests.post(url, auth=self.auth, json=payload, timeout=10)
-                print(f"DEBUG: Activation Response Code: {response.status_code}")
+            for slug in self.target_slugs:
+                ids_to_try = [slug, urllib.parse.quote(slug, safe='')]
+                for pid in ids_to_try:
+                    url = self._get_api_url(api_url, pid)
+                    try:
+                        payload = {'status': 'active'}
+                        print(f"DEBUG: Activating plugin at: {url}")
+                        response = requests.post(url, auth=self.auth, json=payload, timeout=10)
+                        print(f"DEBUG: Activation Response Code: {response.status_code}")
 
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get('status') == 'active'
-                else:
-                    errors.append(f"Activation failed at {url} (Code {response.status_code})")
-            except Exception as e:
-                errors.append(f"Error at {url}: {str(e)}")
+                        if response.status_code == 200:
+                            data = response.json()
+                            return data.get('status') == 'active'
+                        else:
+                            errors.append(f"Activation failed at {url} (Code {response.status_code})")
+                    except Exception as e:
+                        errors.append(f"Error at {url}: {str(e)}")
 
-        raise Exception(f"Failed to activate plugin. Details: {' | '.join(errors)}")
+        raise Exception(f"Failed to activate plugin. Details: {' | '.join(list(set(errors))[:3])}")
 
     def test_connection(self):
         """Tests if the credentials and URL are valid."""
