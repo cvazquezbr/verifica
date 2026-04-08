@@ -13,7 +13,7 @@ class TestAppLogic(unittest.TestCase):
             os.remove("test_monitor.db")
 
     def test_database_site_save_and_get(self):
-        self.db.save_site("http://test.com", "user", "pass")
+        self.db.save_site("http://test.com", "user", "pass", 1)
         site = self.db.get_active_site()
         self.assertIsNotNone(site)
         self.assertEqual(site[1], "http://test.com")

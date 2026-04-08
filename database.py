@@ -19,6 +19,7 @@ class Database:
                     url TEXT NOT NULL,
                     username TEXT NOT NULL,
                     app_password TEXT NOT NULL,
+                    interval_minutes INTEGER DEFAULT 1,
                     is_active INTEGER DEFAULT 0
                 )
             ''')
@@ -35,7 +36,7 @@ class Database:
             ''')
             conn.commit()
 
-    def save_site(self, url, username, app_password):
+    def save_site(self, url, username, app_password, interval=1):
         # We only want one active site as per requirements, but let's allow multiple entries
         # and just flag which one is used.
         with self.get_connection() as conn:
@@ -43,8 +44,8 @@ class Database:
             # Reset all to inactive first if we are setting a new one
             cursor.execute("UPDATE sites SET is_active = 0")
             cursor.execute(
-                "INSERT INTO sites (url, username, app_password, is_active) VALUES (?, ?, ?, 1)",
-                (url, username, app_password)
+                "INSERT INTO sites (url, username, app_password, interval_minutes, is_active) VALUES (?, ?, ?, ?, 1)",
+                (url, username, app_password, interval)
             )
             conn.commit()
             return cursor.lastrowid
@@ -52,7 +53,7 @@ class Database:
     def get_active_site(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, url, username, app_password FROM sites WHERE is_active = 1 LIMIT 1")
+            cursor.execute("SELECT id, url, username, app_password, interval_minutes FROM sites WHERE is_active = 1 LIMIT 1")
             return cursor.fetchone()
 
     def log_event(self, site_id, status, was_activated):

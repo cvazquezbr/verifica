@@ -7,7 +7,7 @@ class MonitorWorker(threading.Thread):
     def __init__(self, db, site_data, callback=None):
         super().__init__()
         self.db = db
-        self.site_id, self.url, self.username, self.password = site_data
+        self.site_id, self.url, self.username, self.password, self.interval = site_data
         self.wp_client = WordPressClient(self.url, self.username, self.password)
         self.callback = callback
         self.running = False
@@ -45,8 +45,8 @@ class MonitorWorker(threading.Thread):
             if self.callback:
                 self.callback(status_text, was_activated)
 
-            # Wait for 60 seconds, but check stop event frequently for quick shutdown
-            for _ in range(60):
+            # Wait for configured interval (in minutes), but check stop event frequently
+            for _ in range(int(self.interval) * 60):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)
