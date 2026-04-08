@@ -16,7 +16,9 @@ class WordPressClient:
 
     def _get_api_url(self, endpoint, resource=""):
         if "?" in endpoint:
-            return f"{endpoint}{resource}"
+            # If it's a query param style, we still need a slash before the resource ID
+            # e.g. ?rest_route=/wp/v2/plugins/slug
+            return f"{endpoint}/{resource}"
         return f"{endpoint}/{resource}".rstrip('/')
 
     def is_plugin_active(self):
@@ -44,6 +46,8 @@ class WordPressClient:
                         if p.get('plugin') == self.target_slug:
                             return p.get('status') == 'active'
                     errors.append(f"List OK at {api_url} but plugin not found.")
+                elif list_response.status_code == 401:
+                    errors.append(f"401 Unauthorized at {api_url}. Check Application Password.")
                 else:
                     errors.append(f"Endpoint {api_url} returned {list_response.status_code}")
             except Exception as e:
