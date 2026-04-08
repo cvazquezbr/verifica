@@ -68,7 +68,7 @@ class App(ctk.CTk):
             label.pack(pady=50)
             return
 
-        site_id, url, user, _ = site
+        site_id, url, user, _, interval = site
         ctk.CTkLabel(self.current_frame, text=f"Monitorando: {url}", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=10)
 
         self.status_label = ctk.CTkLabel(self.current_frame, text="Status: Parado", font=ctk.CTkFont(size=14))
