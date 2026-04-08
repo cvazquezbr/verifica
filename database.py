@@ -19,7 +19,7 @@ class Database:
                     url TEXT NOT NULL,
                     username TEXT NOT NULL,
                     app_password TEXT NOT NULL,
-                    interval_minutes INTEGER DEFAULT 1,
+                    interval_seconds INTEGER DEFAULT 60,
                     is_active INTEGER DEFAULT 0
                 )
             ''')
@@ -40,14 +40,23 @@ class Database:
     def migrate_db(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            # Check if interval_minutes exists
+            # Check columns
             cursor.execute("PRAGMA table_info(sites)")
             columns = [info[1] for info in cursor.fetchall()]
-            if 'interval_minutes' not in columns:
-                cursor.execute("ALTER TABLE sites ADD COLUMN interval_minutes INTEGER DEFAULT 1")
+
+            # Migration from old schema or new column
+            if 'interval_seconds' not in columns:
+                if 'interval_minutes' in columns:
+                    print("Migrating interval_minutes to interval_seconds...")
+                    # Rename column and convert values
+                    cursor.execute("ALTER TABLE sites RENAME COLUMN interval_minutes TO interval_seconds")
+                    cursor.execute("UPDATE sites SET interval_seconds = interval_seconds * 60")
+                else:
+                    print("Adding interval_seconds column...")
+                    cursor.execute("ALTER TABLE sites ADD COLUMN interval_seconds INTEGER DEFAULT 60")
                 conn.commit()
 
-    def save_site(self, url, username, app_password, interval=1):
+    def save_site(self, url, username, app_password, interval=60):
         # We only want one active site as per requirements, but let's allow multiple entries
         # and just flag which one is used.
         with self.get_connection() as conn:
@@ -55,7 +64,7 @@ class Database:
             # Reset all to inactive first if we are setting a new one
             cursor.execute("UPDATE sites SET is_active = 0")
             cursor.execute(
-                "INSERT INTO sites (url, username, app_password, interval_minutes, is_active) VALUES (?, ?, ?, ?, 1)",
+                "INSERT INTO sites (url, username, app_password, interval_seconds, is_active) VALUES (?, ?, ?, ?, 1)",
                 (url, username, app_password, interval)
             )
             conn.commit()
@@ -64,7 +73,7 @@ class Database:
     def get_active_site(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, url, username, app_password, interval_minutes FROM sites WHERE is_active = 1 LIMIT 1")
+            cursor.execute("SELECT id, url, username, app_password, interval_seconds FROM sites WHERE is_active = 1 LIMIT 1")
             return cursor.fetchone()
 
     def log_event(self, site_id, status, was_activated):

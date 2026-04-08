@@ -45,8 +45,8 @@ class MonitorWorker(threading.Thread):
             if self.callback:
                 self.callback(status_text, was_activated)
 
-            # Wait for configured interval (in minutes), but check stop event frequently
-            for _ in range(int(self.interval) * 60):
+            # Wait for configured interval (in seconds), but check stop event frequently
+            for _ in range(int(self.interval)):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)

@@ -134,7 +134,7 @@ class App(ctk.CTk):
         site = self.db.get_active_site()
         current_url = site[1] if site else ""
         current_user = site[2] if site else ""
-        current_interval = str(site[4]) if site else "1"
+        current_interval = str(site[4]) if site else "60"
 
         ctk.CTkLabel(self.current_frame, text="URL do Site:").pack(pady=(10, 0))
         self.ent_url = ctk.CTkEntry(self.current_frame, width=400, placeholder_text="https://exemplo.com")
@@ -150,7 +150,7 @@ class App(ctk.CTk):
         self.ent_pass = ctk.CTkEntry(self.current_frame, width=400, show="*")
         self.ent_pass.pack(pady=5)
 
-        ctk.CTkLabel(self.current_frame, text="Intervalo de Monitoramento (minutos):").pack(pady=(10, 0))
+        ctk.CTkLabel(self.current_frame, text="Intervalo de Monitoramento (segundos):").pack(pady=(10, 0))
         self.ent_interval = ctk.CTkEntry(self.current_frame, width=400)
         self.ent_interval.pack(pady=5)
         self.ent_interval.insert(0, current_interval)
@@ -172,6 +172,10 @@ class App(ctk.CTk):
             int_interval = int(interval)
             if int_interval < 1: raise ValueError
         except ValueError:
+            messagebox.showwarning("Aviso", "Intervalo deve ser um número inteiro maior que 0.")
+            return
+
+        if int_interval < 1:
             messagebox.showwarning("Aviso", "Intervalo deve ser um número inteiro maior que 0.")
             return
 
