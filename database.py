@@ -35,6 +35,17 @@ class Database:
                 )
             ''')
             conn.commit()
+            self.migrate_db()
+
+    def migrate_db(self):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            # Check if interval_minutes exists
+            cursor.execute("PRAGMA table_info(sites)")
+            columns = [info[1] for info in cursor.fetchall()]
+            if 'interval_minutes' not in columns:
+                cursor.execute("ALTER TABLE sites ADD COLUMN interval_minutes INTEGER DEFAULT 1")
+                conn.commit()
 
     def save_site(self, url, username, app_password, interval=1):
         # We only want one active site as per requirements, but let's allow multiple entries
