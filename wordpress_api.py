@@ -87,6 +87,30 @@ class WordPressClient:
 
         raise Exception(f"Failed to activate plugin. Details: {' | '.join(list(set(errors))[:3])}")
 
+    def get_plugin_details(self):
+        """Gets details for the tagDiv Composer plugin."""
+        for api_url in self.api_endpoints:
+            for slug in self.target_slugs:
+                ids_to_try = [slug, urllib.parse.quote(slug, safe='')]
+                for pid in ids_to_try:
+                    try:
+                        url = self._get_api_url(api_url, pid)
+                        response = requests.get(url, auth=self.auth, timeout=10)
+                        if response.status_code == 200:
+                            data = response.json()
+                            return {
+                                'name': data.get('name', 'tagDiv Composer'),
+                                'version': data.get('version', 'N/A'),
+                                'plugin': data.get('plugin', 'td-composer/td-composer.php')
+                            }
+                    except:
+                        pass
+        return {
+            'name': 'tagDiv Composer',
+            'version': 'N/A',
+            'plugin': 'td-composer/td-composer.php'
+        }
+
     def test_connection(self):
         """Tests if the credentials and URL are valid."""
         try:

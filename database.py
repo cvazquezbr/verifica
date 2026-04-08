@@ -20,7 +20,15 @@ class Database:
                     username TEXT NOT NULL,
                     app_password TEXT NOT NULL,
                     interval_seconds INTEGER DEFAULT 60,
-                    is_active INTEGER DEFAULT 0
+                    is_active INTEGER DEFAULT 0,
+                    smtp_host TEXT,
+                    smtp_port INTEGER,
+                    smtp_user TEXT,
+                    smtp_pass TEXT,
+                    smtp_ssl INTEGER DEFAULT 1,
+                    smtp_sender_name TEXT,
+                    smtp_receiver TEXT,
+                    smtp_cc TEXT
                 )
             ''')
             # Table for monitoring logs
@@ -56,24 +64,65 @@ class Database:
                     cursor.execute("ALTER TABLE sites ADD COLUMN interval_seconds INTEGER DEFAULT 60")
                 conn.commit()
 
-    def save_site(self, url, username, app_password, interval=60):
+            # SMTP Columns
+            smtp_columns = [
+                ('smtp_host', 'TEXT'),
+                ('smtp_port', 'INTEGER'),
+                ('smtp_user', 'TEXT'),
+                ('smtp_pass', 'TEXT'),
+                ('smtp_ssl', 'INTEGER DEFAULT 1'),
+                ('smtp_sender_name', 'TEXT'),
+                ('smtp_receiver', 'TEXT'),
+                ('smtp_cc', 'TEXT')
+            ]
+
+            changed = False
+            for col_name, col_type in smtp_columns:
+                if col_name not in columns:
+                    print(f"Adding {col_name} column...")
+                    cursor.execute(f"ALTER TABLE sites ADD COLUMN {col_name} {col_type}")
+                    changed = True
+
+            if changed:
+                conn.commit()
+
+    def save_site(self, url, username, app_password, interval=60, smtp_data=None):
         # We only want one active site as per requirements, but let's allow multiple entries
         # and just flag which one is used.
         with self.get_connection() as conn:
             cursor = conn.cursor()
             # Reset all to inactive first if we are setting a new one
             cursor.execute("UPDATE sites SET is_active = 0")
-            cursor.execute(
-                "INSERT INTO sites (url, username, app_password, interval_seconds, is_active) VALUES (?, ?, ?, ?, 1)",
-                (url, username, app_password, interval)
-            )
+
+            if smtp_data:
+                cursor.execute(
+                    """INSERT INTO sites (
+                        url, username, app_password, interval_seconds, is_active,
+                        smtp_host, smtp_port, smtp_user, smtp_pass, smtp_ssl,
+                        smtp_sender_name, smtp_receiver, smtp_cc
+                    ) VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (url, username, app_password, interval,
+                     smtp_data.get('host'), smtp_data.get('port'), smtp_data.get('user'),
+                     smtp_data.get('pass'), smtp_data.get('ssl'), smtp_data.get('sender_name'),
+                     smtp_data.get('receiver'), smtp_data.get('cc'))
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO sites (url, username, app_password, interval_seconds, is_active) VALUES (?, ?, ?, ?, 1)",
+                    (url, username, app_password, interval)
+                )
             conn.commit()
             return cursor.lastrowid
 
     def get_active_site(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, url, username, app_password, interval_seconds FROM sites WHERE is_active = 1 LIMIT 1")
+            cursor.execute("""
+                SELECT id, url, username, app_password, interval_seconds,
+                       smtp_host, smtp_port, smtp_user, smtp_pass, smtp_ssl,
+                       smtp_sender_name, smtp_receiver, smtp_cc
+                FROM sites WHERE is_active = 1 LIMIT 1
+            """)
             return cursor.fetchone()
 
     def log_event(self, site_id, status, was_activated):
