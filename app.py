@@ -4,6 +4,7 @@ from tkinter import messagebox
 from database import Database
 from monitor import MonitorWorker
 from wordpress_api import WordPressClient
+from email_utils import send_plugin_notification
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
@@ -126,37 +127,127 @@ class App(ctk.CTk):
 
     def show_settings(self):
         self.clear_main_frame()
-        self.current_frame = ctk.CTkFrame(self.main_frame)
+        self.current_frame = ctk.CTkScrollableFrame(self.main_frame)
         self.current_frame.grid(row=0, column=0, sticky="nsew")
 
-        ctk.CTkLabel(self.current_frame, text="Configuração do WordPress", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=20)
-
         site = self.db.get_active_site()
+        # WordPress Settings
+        ctk.CTkLabel(self.current_frame, text="Configuração do WordPress", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 20))
+
         current_url = site[1] if site else ""
         current_user = site[2] if site else ""
         current_interval = str(site[4]) if site else "60"
 
-        ctk.CTkLabel(self.current_frame, text="URL do Site:").pack(pady=(10, 0))
+        ctk.CTkLabel(self.current_frame, text="URL do Site:").pack(pady=(5, 0))
         self.ent_url = ctk.CTkEntry(self.current_frame, width=400, placeholder_text="https://exemplo.com")
         self.ent_url.pack(pady=5)
         self.ent_url.insert(0, current_url)
 
-        ctk.CTkLabel(self.current_frame, text="Usuário:").pack(pady=(10, 0))
+        ctk.CTkLabel(self.current_frame, text="Usuário WP:").pack(pady=(5, 0))
         self.ent_user = ctk.CTkEntry(self.current_frame, width=400)
         self.ent_user.pack(pady=5)
         self.ent_user.insert(0, current_user)
 
-        ctk.CTkLabel(self.current_frame, text="Application Password:").pack(pady=(10, 0))
+        ctk.CTkLabel(self.current_frame, text="Application Password:").pack(pady=(5, 0))
         self.ent_pass = ctk.CTkEntry(self.current_frame, width=400, show="*")
         self.ent_pass.pack(pady=5)
 
-        ctk.CTkLabel(self.current_frame, text="Intervalo de Monitoramento (segundos):").pack(pady=(10, 0))
+        ctk.CTkLabel(self.current_frame, text="Intervalo de Monitoramento (segundos):").pack(pady=(5, 0))
         self.ent_interval = ctk.CTkEntry(self.current_frame, width=400)
         self.ent_interval.pack(pady=5)
         self.ent_interval.insert(0, current_interval)
 
-        self.btn_save = ctk.CTkButton(self.current_frame, text="Salvar e Testar", command=self.save_settings)
+        # SMTP Settings
+        ctk.CTkLabel(self.current_frame, text="Configurações de E-mail (SMTP)", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(30, 20))
+
+        smtp_host = site[5] if site and site[5] else "smtp.gmail.com"
+        smtp_port = str(site[6]) if site and site[6] else "465"
+        smtp_user = site[7] if site and site[7] else "cvazquezbr@gmail.com"
+        smtp_sender_name = site[10] if site and site[10] else "RH - Folha de Ponto"
+        smtp_receiver = site[11] if site and site[11] else ""
+        smtp_cc = site[12] if site and site[12] else "carlos.vazquez@fattocs.com.br"
+        smtp_ssl = site[9] if site is not None and site[9] is not None else 1
+
+        ctk.CTkLabel(self.current_frame, text="Servidor SMTP (Host):").pack(pady=(5, 0))
+        self.ent_smtp_host = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_host.pack(pady=5)
+        self.ent_smtp_host.insert(0, smtp_host)
+
+        ctk.CTkLabel(self.current_frame, text="Porta:").pack(pady=(5, 0))
+        self.ent_smtp_port = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_port.pack(pady=5)
+        self.ent_smtp_port.insert(0, smtp_port)
+
+        self.var_smtp_ssl = tk.IntVar(value=smtp_ssl)
+        self.switch_smtp_ssl = ctk.CTkSwitch(self.current_frame, text="Usar SSL/TLS (Porta 465)", variable=self.var_smtp_ssl)
+        self.switch_smtp_ssl.pack(pady=10)
+
+        ctk.CTkLabel(self.current_frame, text="Usuário / E-mail:").pack(pady=(5, 0))
+        self.ent_smtp_user = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_user.pack(pady=5)
+        self.ent_smtp_user.insert(0, smtp_user)
+
+        ctk.CTkLabel(self.current_frame, text="Senha:").pack(pady=(5, 0))
+        self.ent_smtp_pass = ctk.CTkEntry(self.current_frame, width=400, show="*")
+        self.ent_smtp_pass.pack(pady=5)
+        if site and site[8]:
+             self.ent_smtp_pass.insert(0, site[8])
+
+        ctk.CTkLabel(self.current_frame, text="Nome do Remetente:").pack(pady=(5, 0))
+        self.ent_smtp_sender_name = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_sender_name.pack(pady=5)
+        self.ent_smtp_sender_name.insert(0, smtp_sender_name)
+
+        ctk.CTkLabel(self.current_frame, text="E-mail de Destino:").pack(pady=(5, 0))
+        self.ent_smtp_receiver = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_receiver.pack(pady=5)
+        self.ent_smtp_receiver.insert(0, smtp_receiver)
+
+        ctk.CTkLabel(self.current_frame, text="E-mail em Cópia (CC):").pack(pady=(5, 0))
+        self.ent_smtp_cc = ctk.CTkEntry(self.current_frame, width=400)
+        self.ent_smtp_cc.pack(pady=5)
+        self.ent_smtp_cc.insert(0, smtp_cc)
+
+        self.btn_test_email = ctk.CTkButton(self.current_frame, text="Testar E-mail", fg_color="orange", text_color="black", command=self.test_email)
+        self.btn_test_email.pack(pady=10)
+
+        self.btn_save = ctk.CTkButton(self.current_frame, text="Salvar e Testar WordPress", command=self.save_settings)
         self.btn_save.pack(pady=20)
+
+    def get_smtp_config_from_ui(self):
+        return {
+            'host': self.ent_smtp_host.get().strip(),
+            'port': int(self.ent_smtp_port.get().strip() or 0),
+            'user': self.ent_smtp_user.get().strip(),
+            'pass': self.ent_smtp_pass.get().strip(),
+            'ssl': self.var_smtp_ssl.get(),
+            'sender_name': self.ent_smtp_sender_name.get().strip(),
+            'receiver': self.ent_smtp_receiver.get().strip(),
+            'cc': self.ent_smtp_cc.get().strip()
+        }
+
+    def test_email(self):
+        try:
+            smtp_config = self.get_smtp_config_from_ui()
+            if not smtp_config['receiver']:
+                messagebox.showwarning("Aviso", "Preencha o E-mail de Destino para o teste.")
+                return
+
+            plugin_data = {
+                'name': 'Teste de Monitoramento',
+                'version': '1.0.0',
+                'dir': 'teste-monitor',
+                'reason': 'E-mail de teste de configuração',
+                'wp_admin_url': self.ent_url.get().strip() + "/wp-admin/"
+            }
+
+            success = send_plugin_notification(smtp_config, plugin_data)
+            if success:
+                messagebox.showinfo("Sucesso", "E-mail de teste enviado com sucesso!")
+            else:
+                messagebox.showerror("Erro", "Falha ao enviar e-mail de teste. Verifique os logs.")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao testar e-mail: {e}")
 
     def save_settings(self):
         url = self.ent_url.get().strip()
@@ -165,7 +256,7 @@ class App(ctk.CTk):
         interval = self.ent_interval.get().strip()
 
         if not url or not user or not pwd or not interval:
-            messagebox.showwarning("Aviso", "Preencha todos os campos.")
+            messagebox.showwarning("Aviso", "Preencha todos os campos do WordPress.")
             return
 
         try:
@@ -175,15 +266,16 @@ class App(ctk.CTk):
             messagebox.showwarning("Aviso", "Intervalo deve ser um número inteiro maior que 0.")
             return
 
-        if int_interval < 1:
-            messagebox.showwarning("Aviso", "Intervalo deve ser um número inteiro maior que 0.")
+        smtp_data = self.get_smtp_config_from_ui()
+        if not smtp_data['host'] or not smtp_data['user'] or not smtp_data['pass'] or not smtp_data['receiver']:
+            messagebox.showwarning("Aviso", "Preencha os campos obrigatórios de SMTP (Host, Usuário, Senha e Destinatário).")
             return
 
         # Test connection
         client = WordPressClient(url, user, pwd)
         if client.test_connection():
-            self.db.save_site(url, user, pwd, int_interval)
-            messagebox.showinfo("Sucesso", "Configurações salvas e conexão testada!")
+            self.db.save_site(url, user, pwd, int_interval, smtp_data)
+            messagebox.showinfo("Sucesso", "Configurações salvas e conexão WordPress testada!")
             self.show_dashboard()
         else:
             messagebox.showerror("Erro", "Não foi possível conectar ao WordPress. Verifique a URL e as credenciais.")
