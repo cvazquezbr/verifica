@@ -58,6 +58,7 @@ class MonitorWorker(threading.Thread):
                     status_text = "Active"
             except Exception as e:
                 status_text = f"Error: {str(e)}"
+                reactivation_success = False
                 print(f"Monitoring error: {e}")
 
             # Log to DB
