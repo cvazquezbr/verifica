@@ -14,13 +14,28 @@ class WordPressClient:
         try:
             # The REST API uses the slug as the identifier.
             # We must URL-encode it because it contains a slash.
-            response = requests.get(f"{self.api_url}/{self.plugin_slug}", auth=self.auth, timeout=10)
+            url = f"{self.api_url}/{self.plugin_slug}"
+            print(f"DEBUG: Checking plugin status at: {url}")
+            response = requests.get(url, auth=self.auth, timeout=10)
+
+            print(f"DEBUG: Response Code: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
                 return data.get('status') == 'active'
             elif response.status_code == 404:
-                raise Exception("Plugin 'tagDiv Composer' not found on the site.")
+                # Fallback: list all plugins and search by slug
+                print("DEBUG: Direct access 404. Fetching all plugins...")
+                list_response = requests.get(self.api_url, auth=self.auth, timeout=10)
+                if list_response.status_code == 200:
+                    plugins = list_response.json()
+                    # The actual slug might differ slightly in how WP reports it
+                    target = "td-composer/td-composer.php"
+                    for p in plugins:
+                        if p.get('plugin') == target:
+                            return p.get('status') == 'active'
+
+                raise Exception(f"Plugin 'tagDiv Composer' not found. URL: {url} | Resp: {response.text[:100]}")
             else:
                 response.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -28,14 +43,18 @@ class WordPressClient:
 
     def activate_plugin(self):
         """Activates the tagDiv Composer plugin."""
+        url = f"{self.api_url}/{self.plugin_slug}"
         try:
             payload = {'status': 'active'}
+            print(f"DEBUG: Activating plugin at: {url}")
             response = requests.post(
-                f"{self.api_url}/{self.plugin_slug}",
+                url,
                 auth=self.auth,
                 json=payload,
                 timeout=10
             )
+
+            print(f"DEBUG: Activation Response Code: {response.status_code}")
 
             if response.status_code == 200:
                 data = response.json()
@@ -46,7 +65,7 @@ class WordPressClient:
                     err_msg = response.json().get('message', response.text)
                 except:
                     err_msg = response.text
-                raise Exception(f"Failed to activate plugin: {err_msg}")
+                raise Exception(f"Activation Failed (Code {response.status_code}). URL: {url} | Resp: {err_msg[:100]}")
         except requests.exceptions.RequestException as e:
             raise Exception(f"Connection error during activation: {e}")
 

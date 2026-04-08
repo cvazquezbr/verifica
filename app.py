@@ -107,8 +107,15 @@ class App(ctk.CTk):
             self.status_label.configure(text="Status: Rodando")
 
     def update_status_callback(self, status, was_activated):
+        # UI updates must be scheduled on the main thread
+        self.after(0, self._update_status_ui, status, was_activated)
+
+    def _update_status_ui(self, status, was_activated):
         now = datetime.now().strftime("%H:%M:%S")
-        self.status_label.configure(text=f"Status: {status}")
+
+        # Display short status in label
+        short_status = status.split('|')[0] if '|' in status else status
+        self.status_label.configure(text=f"Status: {short_status}")
         self.last_check_label.configure(text=f"Última verificação: {now}")
 
         log_msg = f"[{now}] {status}"
