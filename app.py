@@ -127,38 +127,52 @@ class App(ctk.CTk):
 
     def show_settings(self):
         self.clear_main_frame()
-        self.current_frame = ctk.CTkScrollableFrame(self.main_frame)
+        self.current_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         self.current_frame.grid(row=0, column=0, sticky="nsew")
 
+        tabview = ctk.CTkTabview(self.current_frame)
+        tabview.pack(fill="both", expand=True, padx=10, pady=10)
+
+        tab_wp = tabview.add("WordPress")
+        tab_email = tabview.add("E-mail (SMTP)")
+
         site = self.db.get_active_site()
-        # WordPress Settings
-        ctk.CTkLabel(self.current_frame, text="Configuração do WordPress", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 20))
+
+        # --- Tab WordPress ---
+        # Using a scrollable frame inside the tab for safety
+        wp_container = ctk.CTkScrollableFrame(tab_wp, fg_color="transparent")
+        wp_container.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(wp_container, text="Configuração do WordPress", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 20))
 
         current_url = site[1] if site else ""
         current_user = site[2] if site else ""
         current_interval = str(site[4]) if site else "60"
 
-        ctk.CTkLabel(self.current_frame, text="URL do Site:").pack(pady=(5, 0))
-        self.ent_url = ctk.CTkEntry(self.current_frame, width=400, placeholder_text="https://exemplo.com")
+        ctk.CTkLabel(wp_container, text="URL do Site:").pack(pady=(5, 0))
+        self.ent_url = ctk.CTkEntry(wp_container, width=400, placeholder_text="https://exemplo.com")
         self.ent_url.pack(pady=5)
         self.ent_url.insert(0, current_url)
 
-        ctk.CTkLabel(self.current_frame, text="Usuário WP:").pack(pady=(5, 0))
-        self.ent_user = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(wp_container, text="Usuário WP:").pack(pady=(5, 0))
+        self.ent_user = ctk.CTkEntry(wp_container, width=400)
         self.ent_user.pack(pady=5)
         self.ent_user.insert(0, current_user)
 
-        ctk.CTkLabel(self.current_frame, text="Application Password:").pack(pady=(5, 0))
-        self.ent_pass = ctk.CTkEntry(self.current_frame, width=400, show="*")
+        ctk.CTkLabel(wp_container, text="Application Password:").pack(pady=(5, 0))
+        self.ent_pass = ctk.CTkEntry(wp_container, width=400, show="*")
         self.ent_pass.pack(pady=5)
 
-        ctk.CTkLabel(self.current_frame, text="Intervalo de Monitoramento (segundos):").pack(pady=(5, 0))
-        self.ent_interval = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(wp_container, text="Intervalo de Monitoramento (segundos):").pack(pady=(5, 0))
+        self.ent_interval = ctk.CTkEntry(wp_container, width=400)
         self.ent_interval.pack(pady=5)
         self.ent_interval.insert(0, current_interval)
 
-        # SMTP Settings
-        ctk.CTkLabel(self.current_frame, text="Configurações de E-mail (SMTP)", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(30, 20))
+        # --- Tab SMTP ---
+        email_container = ctk.CTkScrollableFrame(tab_email, fg_color="transparent")
+        email_container.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(email_container, text="Configurações de E-mail (SMTP)", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 20))
 
         smtp_host = site[5] if site and site[5] else "smtp.gmail.com"
         smtp_port = str(site[6]) if site and site[6] else "465"
@@ -168,51 +182,54 @@ class App(ctk.CTk):
         smtp_cc = site[12] if site and site[12] else "carlos.vazquez@fattocs.com.br"
         smtp_ssl = site[9] if site is not None and site[9] is not None else 1
 
-        ctk.CTkLabel(self.current_frame, text="Servidor SMTP (Host):").pack(pady=(5, 0))
-        self.ent_smtp_host = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="Servidor SMTP (Host):").pack(pady=(5, 0))
+        self.ent_smtp_host = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_host.pack(pady=5)
         self.ent_smtp_host.insert(0, smtp_host)
 
-        ctk.CTkLabel(self.current_frame, text="Porta:").pack(pady=(5, 0))
-        self.ent_smtp_port = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="Porta:").pack(pady=(5, 0))
+        self.ent_smtp_port = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_port.pack(pady=5)
         self.ent_smtp_port.insert(0, smtp_port)
 
         self.var_smtp_ssl = tk.IntVar(value=smtp_ssl)
-        self.switch_smtp_ssl = ctk.CTkSwitch(self.current_frame, text="Usar SSL/TLS (Porta 465)", variable=self.var_smtp_ssl)
+        self.switch_smtp_ssl = ctk.CTkSwitch(email_container, text="Usar SSL/TLS (Porta 465)", variable=self.var_smtp_ssl)
         self.switch_smtp_ssl.pack(pady=10)
 
-        ctk.CTkLabel(self.current_frame, text="Usuário / E-mail:").pack(pady=(5, 0))
-        self.ent_smtp_user = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="Usuário / E-mail:").pack(pady=(5, 0))
+        self.ent_smtp_user = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_user.pack(pady=5)
         self.ent_smtp_user.insert(0, smtp_user)
 
-        ctk.CTkLabel(self.current_frame, text="Senha:").pack(pady=(5, 0))
-        self.ent_smtp_pass = ctk.CTkEntry(self.current_frame, width=400, show="*")
+        ctk.CTkLabel(email_container, text="Senha:").pack(pady=(5, 0))
+        self.ent_smtp_pass = ctk.CTkEntry(email_container, width=400, show="*")
         self.ent_smtp_pass.pack(pady=5)
         if site and site[8]:
              self.ent_smtp_pass.insert(0, site[8])
 
-        ctk.CTkLabel(self.current_frame, text="Nome do Remetente:").pack(pady=(5, 0))
-        self.ent_smtp_sender_name = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="Nome do Remetente:").pack(pady=(5, 0))
+        self.ent_smtp_sender_name = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_sender_name.pack(pady=5)
         self.ent_smtp_sender_name.insert(0, smtp_sender_name)
 
-        ctk.CTkLabel(self.current_frame, text="E-mail de Destino:").pack(pady=(5, 0))
-        self.ent_smtp_receiver = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="E-mail de Destino:").pack(pady=(5, 0))
+        self.ent_smtp_receiver = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_receiver.pack(pady=5)
         self.ent_smtp_receiver.insert(0, smtp_receiver)
 
-        ctk.CTkLabel(self.current_frame, text="E-mail em Cópia (CC):").pack(pady=(5, 0))
-        self.ent_smtp_cc = ctk.CTkEntry(self.current_frame, width=400)
+        ctk.CTkLabel(email_container, text="E-mail em Cópia (CC):").pack(pady=(5, 0))
+        self.ent_smtp_cc = ctk.CTkEntry(email_container, width=400)
         self.ent_smtp_cc.pack(pady=5)
         self.ent_smtp_cc.insert(0, smtp_cc)
 
-        self.btn_test_email = ctk.CTkButton(self.current_frame, text="Testar E-mail", fg_color="orange", text_color="black", command=self.test_email)
+        self.btn_test_email = ctk.CTkButton(email_container, text="Testar E-mail", fg_color="orange", text_color="black", command=self.test_email)
         self.btn_test_email.pack(pady=10)
 
-        self.btn_save = ctk.CTkButton(self.current_frame, text="Salvar e Testar WordPress", command=self.save_settings)
-        self.btn_save.pack(pady=20)
+        # Bottom Actions
+        self.action_frame = ctk.CTkFrame(self.current_frame, fg_color="transparent")
+        self.action_frame.pack(fill="x", pady=10)
+        self.btn_save = ctk.CTkButton(self.action_frame, text="Salvar e Testar WordPress", command=self.save_settings)
+        self.btn_save.pack(pady=10)
 
     def get_smtp_config_from_ui(self):
         try:
