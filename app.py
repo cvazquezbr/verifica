@@ -69,7 +69,7 @@ class App(ctk.CTk):
             label.pack(pady=50)
             return
 
-        site_id, url, user, _, interval = site
+        site_id, url, user, _, interval = site[:5]
         ctk.CTkLabel(self.current_frame, text=f"Monitorando: {url}", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=10)
 
         self.status_label = ctk.CTkLabel(self.current_frame, text="Status: Parado", font=ctk.CTkFont(size=14))
@@ -215,9 +215,14 @@ class App(ctk.CTk):
         self.btn_save.pack(pady=20)
 
     def get_smtp_config_from_ui(self):
+        try:
+            port = int(self.ent_smtp_port.get().strip() or 0)
+        except ValueError:
+            port = 0
+
         return {
             'host': self.ent_smtp_host.get().strip(),
-            'port': int(self.ent_smtp_port.get().strip() or 0),
+            'port': port,
             'user': self.ent_smtp_user.get().strip(),
             'pass': self.ent_smtp_pass.get().strip(),
             'ssl': self.var_smtp_ssl.get(),
@@ -269,6 +274,10 @@ class App(ctk.CTk):
         smtp_data = self.get_smtp_config_from_ui()
         if not smtp_data['host'] or not smtp_data['user'] or not smtp_data['pass'] or not smtp_data['receiver']:
             messagebox.showwarning("Aviso", "Preencha os campos obrigatórios de SMTP (Host, Usuário, Senha e Destinatário).")
+            return
+
+        if smtp_data['port'] <= 0:
+            messagebox.showwarning("Aviso", "A porta SMTP deve ser um número válido.")
             return
 
         # Test connection
