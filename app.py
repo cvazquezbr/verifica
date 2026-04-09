@@ -112,18 +112,26 @@ class App(ctk.CTk):
         self.after(0, self._update_status_ui, status, was_activated)
 
     def _update_status_ui(self, status, was_activated):
+        # Check if we are still in dashboard view and widgets exist
+        if not hasattr(self, 'status_label') or not self.status_label.winfo_exists():
+            return
+
         now = datetime.now().strftime("%H:%M:%S")
 
         # Display short status in label
         short_status = status.split('|')[0] if '|' in status else status
-        self.status_label.configure(text=f"Status: {short_status}")
-        self.last_check_label.configure(text=f"Última verificação: {now}")
+        try:
+            self.status_label.configure(text=f"Status: {short_status}")
+            self.last_check_label.configure(text=f"Última verificação: {now}")
 
-        log_msg = f"[{now}] {status}"
-        if was_activated:
-            log_msg += " (Plugin Reativado!)"
+            log_msg = f"[{now}] {status}"
+            if was_activated:
+                log_msg += " (Plugin Reativado!)"
 
-        self.log_box.insert("0.0", log_msg + "\n")
+            self.log_box.insert("0.0", log_msg + "\n")
+        except tk.TclError:
+            # Widget might have been destroyed just between check and update
+            pass
 
     def show_settings(self):
         self.clear_main_frame()
