@@ -40,6 +40,7 @@ class MonitorWorker(threading.Thread):
         while not self._stop_event.is_set():
             was_activated = False
             status_text = "OK"
+            status_code = Database.STATUS_ACTIVE
             should_send_email = False
             reactivation_success = True
 
@@ -51,18 +52,22 @@ class MonitorWorker(threading.Thread):
                     if activated:
                         was_activated = True
                         status_text = "Reactivated"
+                        status_code = Database.STATUS_REACTIVATED
                     else:
                         status_text = "Activation Failed"
+                        status_code = Database.STATUS_ACT_FAILED
                         reactivation_success = False
                 else:
                     status_text = "Active"
+                    status_code = Database.STATUS_ACTIVE
             except Exception as e:
                 status_text = f"Error: {str(e)}"
+                status_code = Database.STATUS_ERROR
                 reactivation_success = False
                 print(f"Monitoring error: {e}")
 
-            # Log to DB
-            self.db.log_event(self.site_id, status_text, was_activated)
+            # Log to DB using status_code for space optimization
+            self.db.log_event(self.site_id, status_code, was_activated)
 
             # Send Email if plugin was inactive
             if should_send_email and self.smtp_config['receiver']:

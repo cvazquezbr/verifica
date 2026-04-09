@@ -326,14 +326,28 @@ class App(ctk.CTk):
 
         site_id = site[0]
 
+        # Top Bar with Clear button
+        top_bar = ctk.CTkFrame(self.current_frame, fg_color="transparent")
+        top_bar.pack(fill="x", padx=20, pady=(10, 0))
+
+        btn_clear = ctk.CTkButton(top_bar, text="Limpar Histórico e Otimizar",
+                                  fg_color="red", command=self.confirm_clear_logs)
+        btn_clear.pack(side="right")
+
         tabview = ctk.CTkTabview(self.current_frame)
-        tabview.pack(padx=20, pady=20, fill="both", expand=True)
+        tabview.pack(padx=20, pady=10, fill="both", expand=True)
 
         tab_hourly = tabview.add("Hoje (por Hora)")
         tab_daily = tabview.add("Histórico (por Dia)")
 
         self.plot_hourly(tab_hourly, site_id)
         self.plot_daily(tab_daily, site_id)
+
+    def confirm_clear_logs(self):
+        if messagebox.askyesno("Confirmar", "Deseja realmente apagar todo o histórico de estatísticas para economizar espaço?"):
+            self.db.clear_logs_and_optimize()
+            messagebox.showinfo("Sucesso", "Histórico apagado e banco de dados otimizado!")
+            self.show_stats()
 
     def on_closing_stats(self):
         # Clean up figures to prevent memory leaks
