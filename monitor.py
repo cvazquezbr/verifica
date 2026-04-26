@@ -12,7 +12,7 @@ class MonitorWorker(threading.Thread):
         # Unpack site data based on database schema
         (self.site_id, self.url, self.username, self.password, self.interval,
          smtp_host, smtp_port, smtp_user, smtp_pass, smtp_ssl,
-         smtp_sender_name, smtp_receiver, smtp_cc) = site_data
+         smtp_sender_name, smtp_receiver, smtp_cc, _, _) = site_data
 
         # SMTP Data
         self.smtp_config = {

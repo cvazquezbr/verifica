@@ -34,7 +34,9 @@ class Database:
                     smtp_ssl INTEGER DEFAULT 1,
                     smtp_sender_name TEXT,
                     smtp_receiver TEXT,
-                    smtp_cc TEXT
+                    smtp_cc TEXT,
+                    auto_start_monitoring INTEGER DEFAULT 0,
+                    start_with_windows INTEGER DEFAULT 0
                 )
             ''')
             # Table for monitoring logs - status is now INTEGER
@@ -98,7 +100,7 @@ class Database:
                     cursor.execute("ALTER TABLE sites ADD COLUMN interval_seconds INTEGER DEFAULT 60")
                 conn.commit()
 
-            smtp_columns = [
+            new_columns = [
                 ('smtp_host', 'TEXT'),
                 ('smtp_port', 'INTEGER'),
                 ('smtp_user', 'TEXT'),
@@ -106,11 +108,13 @@ class Database:
                 ('smtp_ssl', 'INTEGER DEFAULT 1'),
                 ('smtp_sender_name', 'TEXT'),
                 ('smtp_receiver', 'TEXT'),
-                ('smtp_cc', 'TEXT')
+                ('smtp_cc', 'TEXT'),
+                ('auto_start_monitoring', 'INTEGER DEFAULT 0'),
+                ('start_with_windows', 'INTEGER DEFAULT 0')
             ]
 
             changed = False
-            for col_name, col_type in smtp_columns:
+            for col_name, col_type in new_columns:
                 if col_name not in columns:
                     cursor.execute(f"ALTER TABLE sites ADD COLUMN {col_name} {col_type}")
                     changed = True
@@ -136,7 +140,7 @@ class Database:
                 # However, the user said they don't mind losing data if they use the "Clear" button.
                 pass
 
-    def save_site(self, url, username, app_password, interval=60, smtp_data=None):
+    def save_site(self, url, username, app_password, interval=60, smtp_data=None, auto_start=0, start_windows=0):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             if smtp_data:
@@ -144,18 +148,22 @@ class Database:
                     """INSERT OR REPLACE INTO sites (
                         id, url, username, app_password, interval_seconds, is_active,
                         smtp_host, smtp_port, smtp_user, smtp_pass, smtp_ssl,
-                        smtp_sender_name, smtp_receiver, smtp_cc
-                    ) VALUES (1, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        smtp_sender_name, smtp_receiver, smtp_cc,
+                        auto_start_monitoring, start_with_windows
+                    ) VALUES (1, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (url, username, app_password, interval,
                      smtp_data.get('host'), smtp_data.get('port'), smtp_data.get('user'),
                      smtp_data.get('pass'), smtp_data.get('ssl'), smtp_data.get('sender_name'),
-                     smtp_data.get('receiver'), smtp_data.get('cc'))
+                     smtp_data.get('receiver'), smtp_data.get('cc'),
+                     auto_start, start_windows)
                 )
             else:
                 cursor.execute(
-                    """INSERT OR REPLACE INTO sites (id, url, username, app_password, interval_seconds, is_active)
-                       VALUES (1, ?, ?, ?, ?, 1)""",
-                    (url, username, app_password, interval)
+                    """INSERT OR REPLACE INTO sites (
+                        id, url, username, app_password, interval_seconds, is_active,
+                        auto_start_monitoring, start_with_windows
+                    ) VALUES (1, ?, ?, ?, ?, 1, ?, ?)""",
+                    (url, username, app_password, interval, auto_start, start_windows)
                 )
             conn.commit()
             return 1
@@ -166,7 +174,8 @@ class Database:
             cursor.execute("""
                 SELECT id, url, username, app_password, interval_seconds,
                        smtp_host, smtp_port, smtp_user, smtp_pass, smtp_ssl,
-                       smtp_sender_name, smtp_receiver, smtp_cc
+                       smtp_sender_name, smtp_receiver, smtp_cc,
+                       auto_start_monitoring, start_with_windows
                 FROM sites WHERE id = 1
             """)
             return cursor.fetchone()
