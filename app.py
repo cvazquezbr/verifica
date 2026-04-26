@@ -4,6 +4,11 @@ from tkinter import messagebox
 from database import Database
 from monitor import MonitorWorker
 from wordpress_api import WordPressClient
+from os_utils import set_autostart
+import pystray
+from PIL import Image
+import sys
+import os
 from email_utils import send_plugin_notification
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -14,7 +19,7 @@ ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 class App(ctk.CTk):
-    def __init__(self):
+    def __init__(self, start_minimized=False):
         super().__init__()
 
         self.title("WP Plugin Monitor - tagDiv Composer")
@@ -22,6 +27,14 @@ class App(ctk.CTk):
 
         self.db = Database()
         self.monitor_thread = None
+
+        # Tray icon setup
+        self.tray_icon = None
+        self.setup_tray()
+        self.protocol("WM_DELETE_WINDOW", self.hide_window)
+
+        if start_minimized:
+            self.withdraw()
 
         # UI Layout
         self.grid_columnconfigure(1, weight=1)
@@ -143,6 +156,7 @@ class App(ctk.CTk):
 
         tab_wp = tabview.add("WordPress")
         tab_email = tabview.add("E-mail (SMTP)")
+        tab_system = tabview.add("Sistema")
 
         site = self.db.get_active_site()
 
@@ -233,6 +247,23 @@ class App(ctk.CTk):
         self.btn_test_email = ctk.CTkButton(email_container, text="Testar E-mail", fg_color="orange", text_color="black", command=self.test_email)
         self.btn_test_email.pack(pady=10)
 
+        # --- Tab System ---
+        system_container = ctk.CTkScrollableFrame(tab_system, fg_color="transparent")
+        system_container.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(system_container, text="Configurações do Sistema", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(10, 20))
+
+        auto_start_mon = site[13] if site and len(site) > 13 else 0
+        start_windows = site[14] if site and len(site) > 14 else 0
+
+        self.var_auto_start_mon = tk.IntVar(value=auto_start_mon)
+        self.switch_auto_start_mon = ctk.CTkSwitch(system_container, text="Iniciar monitoramento automaticamente ao abrir o App", variable=self.var_auto_start_mon)
+        self.switch_auto_start_mon.pack(pady=10, padx=20, anchor="w")
+
+        self.var_start_windows = tk.IntVar(value=start_windows)
+        self.switch_start_windows = ctk.CTkSwitch(system_container, text="Iniciar com o Windows (Minimizado)", variable=self.var_start_windows)
+        self.switch_start_windows.pack(pady=10, padx=20, anchor="w")
+
         # Bottom Actions
         self.action_frame = ctk.CTkFrame(self.current_frame, fg_color="transparent")
         self.action_frame.pack(fill="x", pady=10)
@@ -305,10 +336,17 @@ class App(ctk.CTk):
             messagebox.showwarning("Aviso", "A porta SMTP deve ser um número válido.")
             return
 
+        auto_start = self.var_auto_start_mon.get()
+        start_win = self.var_start_windows.get()
+
         # Test connection
         client = WordPressClient(url, user, pwd)
         if client.test_connection():
-            self.db.save_site(url, user, pwd, int_interval, smtp_data)
+            self.db.save_site(url, user, pwd, int_interval, smtp_data, auto_start, start_win)
+
+            # Apply Windows startup setting
+            set_autostart(start_win == 1)
+
             messagebox.showinfo("Sucesso", "Configurações salvas e conexão WordPress testada!")
             self.show_dashboard()
         else:
@@ -400,6 +438,53 @@ class App(ctk.CTk):
         # Ensure figure is closed when frame is destroyed
         master.bind("<Destroy>", lambda e: plt.close(fig))
 
+    def setup_tray(self):
+        # Create a simple icon (placeholder or load from file)
+        # For now, we'll try to create a simple blue square if no icon file
+        try:
+            # You might want to use a real icon file here
+            icon_path = os.path.join(os.path.dirname(__file__), "icon.png")
+            if os.path.exists(icon_path):
+                image = Image.open(icon_path)
+            else:
+                image = Image.new('RGB', (64, 64), color=(0, 120, 215))
+        except Exception:
+            image = Image.new('RGB', (64, 64), color=(0, 120, 215))
+
+        menu = pystray.Menu(
+            pystray.Item('Mostrar', self.show_window, default=True),
+            pystray.Item('Sair', self.quit_app)
+        )
+        self.tray_icon = pystray.Icon("wp_monitor", image, "WP Plugin Monitor", menu)
+
+        # Run tray icon in a separate thread
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+
+    def hide_window(self):
+        self.withdraw()
+
+    def show_window(self, icon=None, item=None):
+        self.after(0, self.deiconify)
+        self.after(0, self.focus_force)
+
+    def quit_app(self, icon=None, item=None):
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.stop()
+
+        if self.tray_icon:
+            self.tray_icon.stop()
+
+        self.after(0, self.destroy)
+        sys.exit(0)
+
 if __name__ == "__main__":
-    app = App()
+    start_minimized = "--minimized" in sys.argv
+    app = App(start_minimized=start_minimized)
+
+    # Auto-start monitoring if configured
+    site = app.db.get_active_site()
+    if site and len(site) > 13 and site[13] == 1:
+        # Give UI a moment to initialize before starting monitoring
+        app.after(1000, app.toggle_monitoring)
+
     app.mainloop()

@@ -23,7 +23,7 @@ class TestAppLogic(unittest.TestCase):
             'receiver': 'dest@test.com',
             'cc': 'cc@test.com'
         }
-        self.db.save_site("http://test.com", "user", "pass", 60, smtp_data)
+        self.db.save_site("http://test.com", "user", "pass", 60, smtp_data, 0, 0)
         site = self.db.get_active_site()
         self.assertIsNotNone(site)
         self.assertEqual(site[1], "http://test.com")
