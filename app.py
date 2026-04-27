@@ -452,8 +452,8 @@ class App(ctk.CTk):
             image = Image.new('RGB', (64, 64), color=(0, 120, 215))
 
         menu = pystray.Menu(
-            pystray.Item('Mostrar', self.show_window, default=True),
-            pystray.Item('Sair', self.quit_app)
+            pystray.MenuItem('Mostrar', self.show_window, default=True),
+            pystray.MenuItem('Sair', self.quit_app)
         )
         self.tray_icon = pystray.Icon("wp_monitor", image, "WP Plugin Monitor", menu)
 
