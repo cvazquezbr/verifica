@@ -1,5 +1,8 @@
 import sqlite3
 import datetime
+import os
+import sys
+from pathlib import Path
 
 class Database:
     # Status Mapping
@@ -9,11 +12,26 @@ class Database:
     STATUS_ACT_FAILED = 3
 
     def __init__(self, db_name="monitor.db"):
-        self.db_name = db_name
+        self.db_path = self._resolve_path(db_name)
         self.init_db()
 
+    def _resolve_path(self, db_name):
+        # If it's already an absolute path, use it
+        if os.path.isabs(db_name):
+            return db_name
+
+        # Determine the base directory
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable (.exe)
+            base_dir = Path(sys.executable).parent.absolute()
+        else:
+            # Running as normal script (.py)
+            base_dir = Path(__file__).parent.absolute()
+
+        return str(base_dir / db_name)
+
     def get_connection(self):
-        return sqlite3.connect(self.db_name)
+        return sqlite3.connect(self.db_path)
 
     def init_db(self):
         with self.get_connection() as conn:

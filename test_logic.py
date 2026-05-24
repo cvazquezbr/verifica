@@ -9,8 +9,8 @@ class TestAppLogic(unittest.TestCase):
         self.db = Database("test_monitor.db")
 
     def tearDown(self):
-        if os.path.exists("test_monitor.db"):
-            os.remove("test_monitor.db")
+        if hasattr(self, 'db') and os.path.exists(self.db.db_path):
+            os.remove(self.db.db_path)
 
     def test_database_site_save_and_get(self):
         smtp_data = {
